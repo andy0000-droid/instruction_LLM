@@ -8,6 +8,7 @@ import os
 os.environ["HF_TOKEN"]="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"
 os.environ["HUGGINGFACEHUB_API_TOKEN"]="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"
 
+import time
 from time import time
 
 result_dir = "Result"
@@ -16,6 +17,10 @@ if not(os.path.isdir(result_dir)):
     os.mkdir(result_dir)
 
 from discord_sender import send_message
+
+def alive(_worker_id):
+    time.sleep(10)
+    send_message("worker_{} is alive".format(_worker_id))
 
 def model(_model_id, _worker_id, datasets):
     
@@ -54,14 +59,21 @@ def model(_model_id, _worker_id, datasets):
     )
     end = time()
     print("FINISH: {} from worker{}".format(_model, _worker_id))
-    send_message("FINISH: {} from worker_{}".format(_model, _worker_id))
+    send_message("FINISH: {} from worker_{}. Execution Time: {}".format(_model, _worker_id, end - start))
     yield(outputs[0]["generated_text"][len(prompt):], end - start, _model)
 
+
+from multiprocessing import Process
 result_file = "Result"
 ext = ".txt"
 
 def trainer(worker_id, datasets):
-    for result, execution_time, used_model in model(model_id, worker_id, datasets):
+    p1 = Process(target=alive, args=(worker_id))
+    p2 = Process(target=model, args=(model_id, worker_id, datasets))
+    p1.start()
+    p2.start()
+    
+    for result, execution_time, used_model in p2.join():
         res_dict = dict()
         res_dict['Result'] = result
         res_dict['Time'] = execution_time
@@ -69,3 +81,4 @@ def trainer(worker_id, datasets):
 
         with open(result_path, 'a') as f:
             f.write("Model: {}\nTime: {}\nResult: {}\n\n\n".format(used_model, res_dict['Time'], res_dict['Result']))
+    p1.join()
