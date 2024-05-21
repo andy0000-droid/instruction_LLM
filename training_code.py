@@ -18,16 +18,11 @@ if not(os.path.isdir(result_dir)):
 
 from discord_sender import send_message
 
-def alive(_worker_id):
-    time.sleep(10)
-    send_message("worker_{} is alive".format(_worker_id))
-
 def model(_model_id, _worker_id, datasets):
-    
     _model = _model_id[(_worker_id % 2)]
     print("START: {} from worker_{}".format(_model, _worker_id))
     send_message("START: {} from worker_{}".format(_model, _worker_id))
-    
+
     start = time()
     pipeline = transformers.pipeline(
         "text-generation",
@@ -62,18 +57,21 @@ def model(_model_id, _worker_id, datasets):
     send_message("FINISH: {} from worker_{}. Execution Time: {}".format(_model, _worker_id, end - start))
     yield(outputs[0]["generated_text"][len(prompt):], end - start, _model)
 
-
-from multiprocessing import Process
 result_file = "Result"
 ext = ".txt"
 
+from multiprocessing import Process
+from time import sleep
+def alive(_worker_id):
+    sleep(600)
+    send_message("worker_{} is alive".format(_worker_id))
+
 def trainer(worker_id, datasets):
-    p1 = Process(target=alive, args=(worker_id))
-    p2 = Process(target=model, args=(model_id, worker_id, datasets))
-    p1.start()
-    p2.start()
     
-    for result, execution_time, used_model in p2.join():
+    proc = Process(target=alive, args=(worker_id, ))
+    proc.start()
+    for result, execution_time, used_model in model(model_id, worker_id, datasets):
+        
         res_dict = dict()
         res_dict['Result'] = result
         res_dict['Time'] = execution_time
@@ -81,4 +79,4 @@ def trainer(worker_id, datasets):
 
         with open(result_path, 'a') as f:
             f.write("Model: {}\nTime: {}\nResult: {}\n\n\n".format(used_model, res_dict['Time'], res_dict['Result']))
-    p1.join()
+        proc.join()
