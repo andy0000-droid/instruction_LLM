@@ -15,48 +15,47 @@ result_dir = "Result"
 if not(os.path.isdir(result_dir)):
     os.mkdir(result_dir)
 
+from discord_sender import send_message
+
 def model(_model_id, _worker_id, datasets):
-    for _ in _model_id:
-        print("START: {} from worker{}".format(_, _worker_id))
-        start = time()
-
-        pipeline = transformers.pipeline(
-            "text-generation",
-            model=_,
-            model_kwargs={"torch_dtype": torch.bfloat16},
-            device_map="auto",
-        )
-
-        messages = [
-            {"role": "system", "content": "You are a Opensource expert who can "},
-            {"role": "system", "content": datasets['train']},
-            {"role": "user", "content": "Where is this code from"+datasets['train'][0]['instruction']}
-        ]
-
-        prompt = pipeline.tokenizer.apply_chat_template(
-                messages, 
-                tokenize=False, 
-                add_generation_prompt=True
-        )
-
-        terminators = [
-            pipeline.tokenizer.eos_token_id,
-            pipeline.tokenizer.convert_tokens_to_ids("<|eot_id|>")
-        ]
-
-        outputs = pipeline(
-            prompt,
-            max_new_tokens=1024,
-            eos_token_id=terminators,
-            do_sample=True,
-            temperature=0.6,
-            top_p=0.9,
-        )
-
-        end = time()
-
-        print("FINISH: {} from worker{}".format(_, _worker_id))
-        yield(outputs[0]["generated_text"][len(prompt):], end - start, _)
+    
+    _model = _model_id[(_worker_id % 2)]
+    print("START: {} from worker_{}".format(_model, _worker_id))
+    send_message("START: {} from worker_{}".format(_model, _worker_id))
+    
+    start = time()
+    pipeline = transformers.pipeline(
+        "text-generation",
+        model=_model,
+        model_kwargs={"torch_dtype": torch.bfloat16},
+        device_map="auto",
+    )
+    messages = [
+        {"role": "system", "content": "You are a Opensource expert who can "},
+        {"role": "system", "content": datasets['train']},
+        {"role": "user", "content": "Where is this code from"+datasets['train'][0]['instruction']}
+    ]
+    prompt = pipeline.tokenizer.apply_chat_template(
+            messages, 
+            tokenize=False, 
+            add_generation_prompt=True
+    )
+    terminators = [
+        pipeline.tokenizer.eos_token_id,
+        pipeline.tokenizer.convert_tokens_to_ids("<|eot_id|>")
+    ]
+    outputs = pipeline(
+        prompt,
+        max_new_tokens=1024,
+        eos_token_id=terminators,
+        do_sample=True,
+        temperature=0.6,
+        top_p=0.9,
+    )
+    end = time()
+    print("FINISH: {} from worker{}".format(_model, _worker_id))
+    send_message("FINISH: {} from worker_{}".format(_model, _worker_id))
+    yield(outputs[0]["generated_text"][len(prompt):], end - start, _model)
 
 result_file = "Result"
 ext = ".txt"
