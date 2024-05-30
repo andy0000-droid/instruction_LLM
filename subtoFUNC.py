@@ -11,12 +11,12 @@ def replace_functions(content):
     return content
 
 # 디렉토리 경로 설정
-directory_path = "/LLama/functions"
+source_path = "/LLama/functions"
 
 # 디렉토리 내의 파일들을 순회하며 작업 수행
-for filename in os.listdir(directory_path):
+for filename in os.listdir(source_path):
     # 파일의 전체 경로 구성
-    file_path = os.path.join(directory_path, filename)
+    file_path = os.path.join(source_path, filename)
     
     # 파일인 경우에만 작업 수행
     if os.path.isfile(file_path):
